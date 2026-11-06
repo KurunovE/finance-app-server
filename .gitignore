@@ -1,0 +1,26 @@
+.DS_Store
+.idea/
+*.iml
+.gradle/
+.gradle-user-home/
+__pycache__/
+backups/
+**/build/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.dump
+*.sql.gz
+.kotlin/
+allure-results/
+
+# Local agent instructions and workspace files
+AGENTS.md
+COMMITS.md
+.agents/
+.codex/
+

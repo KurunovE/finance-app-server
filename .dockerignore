@@ -1,0 +1,7 @@
+*
+!infra/
+!infra/Dockerfile
+!backend/
+!backend/build/
+!backend/build/libs/
+!backend/build/libs/finance-tracker-backend-0.1.0-SNAPSHOT.jar

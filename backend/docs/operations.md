@@ -2,7 +2,7 @@
 
 Рабочий внутренний backend проверяется из готового JAR, с PostgreSQL 18 и TLS.
 Публикация в интернет в этой работе не выполнялась. GitHub Actions настроен на каждый
-push и pull request: тесты и JaCoCo gates 80%. См. [README](../../README.md#ci-в-github-actions).
+push и pull request: тесты и JaCoCo gates 80%. Настройки запуска проверок находятся в [backend-ci.yml](../../.github/workflows/backend-ci.yml).
 
 ## Сборка и контейнеры
 

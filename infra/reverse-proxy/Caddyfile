@@ -1,0 +1,24 @@
+{
+    auto_https disable_redirects
+}
+
+http://{$API_DOMAIN} {
+    respond "HTTPS required" 426
+}
+
+https://{$API_DOMAIN} {
+    request_body {
+        max_size 256KB
+    }
+    reverse_proxy https://{$BACKEND_ADDRESS} {
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto https
+        header_up -Forwarded
+        transport http {
+            tls_trust_pool file /run/secrets/backend-ca.pem
+            tls_server_name {$BACKEND_TLS_NAME}
+            dial_timeout 5s
+            response_header_timeout 30s
+        }
+    }
+}

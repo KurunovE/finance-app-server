@@ -1,0 +1,33 @@
+name: finance-tracker-local
+services:
+  mailpit:
+    image: ghcr.io/axllent/mailpit:v1.31.3@sha256:ed9b00c609e77e99c79b93f1178255ebc271868920f2c69a8d166bd5634ed10d
+    profiles: [mail]
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    environment:
+      MP_DISABLE_VERSION_CHECK: "true"
+  postgres:
+    image: postgres:18.3
+    environment:
+      POSTGRES_DB: finance
+      POSTGRES_USER: finance_bootstrap
+      POSTGRES_PASSWORD: ${POSTGRES_BOOTSTRAP_PASSWORD:?Set a local bootstrap password}
+      DB_RUNTIME_PASSWORD: ${DB_RUNTIME_PASSWORD:?Set a local runtime password}
+      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:?Set a local migrator password}
+      DB_INVITE_PASSWORD: ${DB_INVITE_PASSWORD:?Set a private invite admin password}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U finance_bootstrap -d finance" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  postgres_data:
+

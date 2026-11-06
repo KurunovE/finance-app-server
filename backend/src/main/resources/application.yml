@@ -1,0 +1,79 @@
+spring:
+  aop:
+    proxy-target-class: false
+  mail:
+    host: ${SMTP_HOST:127.0.0.1}
+    port: ${SMTP_PORT:1025}
+    properties:
+      "[mail.smtp.connectiontimeout]": 3000
+      "[mail.smtp.timeout]": 3000
+      "[mail.smtp.writetimeout]": 3000
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  application:
+    name: finance-tracker
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_RUNTIME_USER}
+    password: ${DB_RUNTIME_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-init-sql: SET search_path TO app, pg_catalog
+  flyway:
+    url: ${DB_URL}
+    user: ${DB_MIGRATOR_USER}
+    password: ${DB_MIGRATOR_PASSWORD}
+    clean-disabled: true
+    default-schema: app
+    schemas: app
+    create-schemas: false
+  mvc:
+    log-request-details: false
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+server:
+  address: 127.0.0.1
+  port: 8080
+  forward-headers-strategy: none
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: false
+      show-details: never
+      show-components: never
+
+app:
+  account-mail:
+    from: ${MAIL_FROM:no-reply@finance.local}
+    public-url: ${MAIL_PUBLIC_URL:http://127.0.0.1:8080}
+    verification-ttl: PT24H
+    reset-ttl: PT15M
+  auth:
+    current-kid: ${JWT_CURRENT_KID:primary}
+    keys:
+      primary: ${JWT_KEY_FILE}
+    requests-per-minute: 60
+    max-rate-limit-keys: 10000
+
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+    url: /api-docs/openapi.yaml
+    disable-swagger-default-url: true
+    query-config-enabled: false
+    persist-authorization: false
+    validator-url: none

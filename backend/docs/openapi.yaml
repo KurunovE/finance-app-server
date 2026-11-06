@@ -1,0 +1,4410 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Finance Tracker API",
+    "version": "0.6.0",
+    "description": "API учёта расходов. Регистрация доступна по приглашению; для входа требуется подтверждённая почта. Защищённые запросы используют Authorization: Bearer <accessToken>. Финансовые данные передаются через синхронизацию. Перед синхронизацией получите текущую эпоху через GET /api/v1/sync/status. При смене эпохи требуется полное восстановление локальной копии. Ошибки возвращаются в формате Error; requestId служит для поиска запроса в журнале."
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "register",
+        "description": "Создаёт пользователя, устройство и начальные категории по одноразовому приглашению. Приглашение расходуется в одной транзакции с созданием аккаунта. Возвращает профиль; токены выдаются после подтверждения почты и входа. Повторный email: 409; недействительное приглашение, неподдерживаемая валюта или отклонённый пароль: 422.",
+        "responses": {
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме."
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Register"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "tags": [
+          "Авторизация"
+        ],
+        "summary": "Зарегистрировать аккаунт"
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "description": "Проверяет email и пароль. Почта должна быть подтверждена. Создаёт сессию устройства и возвращает пару токенов. Новый вход с тем же deviceId заменяет прежнюю сессию этого устройства. Ограничение попыток входа возвращает 429.",
+        "responses": {
+          "200": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tokens"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "tags": [
+          "Авторизация"
+        ],
+        "summary": "Войти с устройства"
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "refresh",
+        "description": "Обменивает refreshToken на новую пару токенов. Старый refreshToken становится недействительным. Повторное использование старого токена отзывает семейство сессии, включая уже выданные новые токены. Храните новую пару атомарно; повторный запрос со старым токеном небезопасен.",
+        "responses": {
+          "200": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tokens"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Refresh"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "tags": [
+          "Авторизация"
+        ],
+        "summary": "Обновить пару токенов"
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "description": "Требуется accessToken. Отзывает семейство токенов текущего устройства. Успешный ответ не содержит тела.",
+        "responses": {
+          "204": {
+            "description": "Операция выполнена. Тело ответа отсутствует.",
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Авторизация"
+        ],
+        "summary": "Завершить текущую сессию"
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "operationId": "me",
+        "description": "Возвращает идентификатор, email и базовую валюту текущего пользователя.",
+        "responses": {
+          "200": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Профиль"
+        ],
+        "summary": "Получить свой профиль"
+      }
+    },
+    "/v1/me": {
+      "delete": {
+        "operationId": "deleteAccount",
+        "description": "Требуется accessToken и подтверждение паролем. Неверный пароль: 403. Удаляет аккаунт и связанные серверные данные. Локальные копии на устройствах и ранее созданные резервные копии этот запрос не удаляет. Обратите внимание на путь: DELETE /v1/me.",
+        "responses": {
+          "204": {
+            "description": "Операция выполнена. Тело ответа отсутствует.",
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccount"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "tags": [
+          "Профиль"
+        ],
+        "summary": "Удалить свой аккаунт"
+      }
+    },
+    "/actuator/health": {
+      "get": {
+        "operationId": "health",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Проверяемые компоненты доступны; status=UP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "UP"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Один или несколько проверяемых компонентов недоступны; ответ содержит состояние здоровья сервиса.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Мониторинг"
+        ],
+        "summary": "Проверить состояние сервиса",
+        "description": "Публичная проверка работоспособности. Возвращает UP при доступности проверяемых компонентов; недоступность отражается HTTP 503. Подробности компонентов скрыты. Состояние UP само по себе не означает, что завершено восстановление данных."
+      }
+    },
+    "/api/v1/sync/push": {
+      "post": {
+        "operationId": "push",
+        "description": "Принимает от 1 до 50 операций. Операции выполняются последовательно и фиксируются независимо: ошибка поздней операции не отменяет уже применённые. Результат каждой операции находится в results, в том числе CONFLICT, VALIDATION_ERROR и NOT_FOUND при HTTP 200. Повтор того же operationId с тем же содержимым идемпотентен; другое содержимое под тем же ID вызывает 409. Эпоха каждой операции должна совпадать с текущей. CREATE создаёт сущность, UPDATE применяет непустое частичное изменение, DELETE удаляет её. Категории вместо удаления архивируются через UPDATE. Максимальный размер JSON — 256 КиБ, вложенность — 8 уровней.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Push"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "responses": {
+          "200": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushResults"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело запроса превышает допустимый размер 256 КиБ.",
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Не передан обязательный заголовок X-Recovery-Epoch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Recovery-Epoch",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Текущая UUID-эпоха из GET /api/v1/sync/status. Отсутствие: 428; неверный формат: 400; устаревшая эпоха: 409. Не присваивайте новую эпоху старым локальным операциям."
+          }
+        ],
+        "tags": [
+          "Синхронизация"
+        ],
+        "summary": "Отправить изменения устройства"
+      }
+    },
+    "/api/v1/sync/pull": {
+      "get": {
+        "operationId": "pull",
+        "description": "Возвращает изменения текущего пользователя в порядке seq, включая удаления. Сохраните изменения и nextCursor согласованно. Пока hasMore=true, запрашивайте следующую страницу с cursor=nextCursor. При смене эпохи старый курсор использовать нельзя; требуется восстановление. Недопустимые cursor или limit: 422.",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Последний сохранённый seq; 0 начинает чтение с начала. Для следующей страницы передавайте nextCursor из предыдущего ответа."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "description": "Максимальное число изменений на странице: 1–200, по умолчанию 100."
+          },
+          {
+            "name": "X-Recovery-Epoch",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Текущая UUID-эпоха из GET /api/v1/sync/status. Отсутствие: 428; неверный формат: 400; устаревшая эпоха: 409. Не присваивайте новую эпоху старым локальным операциям."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pull"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Не передан обязательный заголовок X-Recovery-Epoch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Синхронизация"
+        ],
+        "summary": "Получить изменения после курсора"
+      }
+    },
+    "/api/v1/auth/email/request": {
+      "post": {
+        "operationId": "requestEmailVerification",
+        "description": "Отправляет письмо с одноразовым токеном подтверждения подходящему аккаунту. Ответ 202 одинаков для существующей и неизвестной почты и не раскрывает наличие аккаунта. Повторная отправка ограничена интервалом; по умолчанию токен действует 24 часа.",
+        "responses": {
+          "202": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "security": [],
+        "tags": [
+          "Почта и пароль"
+        ],
+        "summary": "Запросить подтверждение почты"
+      }
+    },
+    "/api/v1/auth/email/verify": {
+      "post": {
+        "operationId": "verifyEmail",
+        "description": "Погашает одноразовый токен из письма и подтверждает email. Токен другого назначения, просроченный или уже использованный токен отклоняется. После подтверждения можно выполнить вход.",
+        "responses": {
+          "204": {
+            "description": "Операция выполнена. Тело ответа отсутствует."
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionToken"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "security": [],
+        "tags": [
+          "Почта и пароль"
+        ],
+        "summary": "Подтвердить почту"
+      }
+    },
+    "/api/v1/auth/password/forgot": {
+      "post": {
+        "operationId": "forgotPassword",
+        "description": "Отправляет подходящему аккаунту письмо со ссылкой сброса пароля. Возвращает одинаковый 202 независимо от наличия аккаунта. По умолчанию токен действует 15 минут; повторная отправка ограничена интервалом.",
+        "responses": {
+          "202": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "security": [],
+        "tags": [
+          "Почта и пароль"
+        ],
+        "summary": "Запросить сброс пароля"
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "operationId": "resetPassword",
+        "description": "Проверяет одноразовый токен сброса, меняет пароль и отзывает все сессии пользователя. После успешного запроса требуется новый вход. Если новый пароль отклонён политикой, токен не расходуется.",
+        "responses": {
+          "204": {
+            "description": "Операция выполнена. Тело ответа отсутствует."
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordReset"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "security": [],
+        "tags": [
+          "Почта и пароль"
+        ],
+        "summary": "Установить новый пароль по токену"
+      }
+    },
+    "/api/v1/sync/status": {
+      "get": {
+        "operationId": "syncStatus",
+        "description": "Возвращает текущую эпоху сервера, фазу восстановления и признак обязательной полной пересинхронизации для устройства. Заголовок X-Recovery-Epoch для этого запроса не требуется. Используйте результат перед push/pull и после уведомления о смене эпохи.",
+        "responses": {
+          "200": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Синхронизация"
+        ],
+        "summary": "Получить состояние синхронизации"
+      }
+    },
+    "/api/v1/sync/recovery/start": {
+      "post": {
+        "operationId": "startRecovery",
+        "description": "Создаёт сессию восстановления с фиксированной границей cutoffSeq. Сохраните локальную копию и изолируйте очередь старых операций. Затем загрузите все страницы через recovery/{id}/pull и подтвердите завершение через recovery/{id}/ack.",
+        "responses": {
+          "200": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoverySession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Не передан обязательный заголовок X-Recovery-Epoch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Recovery-Epoch",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Текущая UUID-эпоха из GET /api/v1/sync/status. Отсутствие: 428; неверный формат: 400; устаревшая эпоха: 409. Не присваивайте новую эпоху старым локальным операциям."
+          }
+        ],
+        "tags": [
+          "Восстановление"
+        ],
+        "summary": "Начать полное восстановление устройства"
+      }
+    },
+    "/api/v1/sync/recovery/{id}/pull": {
+      "get": {
+        "operationId": "pullRecovery",
+        "description": "Возвращает изменения до cutoffSeq выбранной сессии. Используйте nextCursor для следующей страницы; пропуск ещё не выданных изменений запрещён. Продолжайте до hasMore=false. Сессия относится к текущему пользователю и устройству.",
+        "responses": {
+          "200": {
+            "description": "Операция выполнена. Тело ответа соответствует указанной схеме.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Не передан обязательный заголовок X-Recovery-Epoch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Запрошенный ресурс или сессия восстановления не найдены.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Recovery-Epoch",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Текущая UUID-эпоха из GET /api/v1/sync/status. Отсутствие: 428; неверный формат: 400; устаревшая эпоха: 409. Не присваивайте новую эпоху старым локальным операциям."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID сессии, полученный от POST /api/v1/sync/recovery/start."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Последний сохранённый seq; 0 начинает чтение с начала. Для следующей страницы передавайте nextCursor из предыдущего ответа."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "description": "Максимальное число изменений на странице: 1–200, по умолчанию 100."
+          }
+        ],
+        "tags": [
+          "Восстановление"
+        ],
+        "summary": "Загрузить страницу восстановления"
+      }
+    },
+    "/api/v1/sync/recovery/{id}/ack": {
+      "post": {
+        "operationId": "ackRecovery",
+        "description": "Подтверждает получение данных до cutoffSeq. lastCursor должен совпадать с cutoffSeq, а localCopyPreserved и pendingOperationsQuarantined должны быть true. После подтверждения устройство может продолжить обычную синхронизацию. Повторное подтверждение завершённой сессии допустимо.",
+        "responses": {
+          "204": {
+            "description": "Операция выполнена. Тело ответа отсутствует."
+          },
+          "400": {
+            "description": "Некорректный JSON, неизвестное поле, неверный формат или нарушение ограничений входных данных.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отсутствует или недействителен токен либо отклонены данные входа.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ запрещён; при удалении аккаунта возможен неверный пароль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт с текущим состоянием: повторный email, несовпадение эпохи, необходимость восстановления или повтор ID с другим содержимым.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Запрос прочитан, но значения отклонены правилами предметной области.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера; сохраните requestId для диагностики.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Превышен лимит запросов. Повторите запрос после интервала Retry-After.",
+            "headers": {
+              "Retry-After": {
+                "description": "Минимальное время ожидания перед повтором, в секундах.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен, в том числе во время восстановления сервера.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Recovery-Epoch": {
+                "description": "Текущая эпоха сервера. При изменении остановите обычную синхронизацию и выполните восстановление.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Не передан обязательный заголовок X-Recovery-Epoch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Запрошенный ресурс или сессия восстановления не найдены.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело JSON превышает 256 КиБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Recovery-Epoch",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Текущая UUID-эпоха из GET /api/v1/sync/status. Отсутствие: 428; неверный формат: 400; устаревшая эпоха: 409. Не присваивайте новую эпоху старым локальным операциям."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID сессии, полученный от POST /api/v1/sync/recovery/start."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryAck"
+              }
+            }
+          },
+          "description": "JSON с параметрами операции. Обязательные поля отмечены в схеме; неизвестные поля отклоняются."
+        },
+        "tags": [
+          "Восстановление"
+        ],
+        "summary": "Подтвердить завершение восстановления"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Получите accessToken через login или refresh. В Swagger Authorize вставьте только токен, без префикса Bearer."
+      }
+    },
+    "schemas": {
+      "Register": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Адрес электронной почты пользователя.",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 128,
+            "writeOnly": true,
+            "description": "Пароль. Новый пароль: 12–128 символов Unicode; распространённые пароли отклоняются. Пароль передаётся только по защищённому соединению.",
+            "example": "SampleFinance!2026"
+          },
+          "baseCurrencyCode": {
+            "type": "string",
+            "enum": [
+              "RUB",
+              "EUR",
+              "USD"
+            ],
+            "description": "Базовая валюта: RUB, EUR или USD.",
+            "example": "RUB"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Стабильный UUID установки приложения; используйте то же значение при последующих входах с устройства.",
+            "example": "11111111-1111-4111-8111-111111111111"
+          },
+          "inviteCode": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{22}$",
+            "writeOnly": true,
+            "description": "Одноразовое приглашение: 22 символа base64url."
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "baseCurrencyCode",
+          "deviceId",
+          "inviteCode"
+        ],
+        "additionalProperties": false,
+        "description": "Данные регистрации по приглашению.",
+        "example": {
+          "email": "user@example.com",
+          "password": "SampleFinance!2026",
+          "baseCurrencyCode": "RUB",
+          "deviceId": "11111111-1111-4111-8111-111111111111",
+          "inviteCode": "aaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "Login": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Адрес электронной почты пользователя.",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "writeOnly": true,
+            "description": "Текущий пароль; ограничение входного JSON — 256 кодовых единиц UTF-16.",
+            "example": "SampleFinance!2026"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Стабильный UUID установки приложения; используйте то же значение при последующих входах с устройства.",
+            "example": "11111111-1111-4111-8111-111111111111"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "deviceId"
+        ],
+        "additionalProperties": false,
+        "description": "Учётные данные и устройство для входа.",
+        "example": {
+          "email": "user@example.com",
+          "password": "SampleFinance!2026",
+          "deviceId": "11111111-1111-4111-8111-111111111111"
+        }
+      },
+      "Refresh": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "writeOnly": true,
+            "description": "Непрозрачный одноразовый токен обновления: 43 символа base64url."
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "additionalProperties": false,
+        "description": "Токен для однократного обновления сессии.",
+        "example": {
+          "refreshToken": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "DeleteAccount": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "writeOnly": true,
+            "description": "Текущий пароль; ограничение входного JSON — 256 кодовых единиц UTF-16.",
+            "example": "SampleFinance!2026"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "additionalProperties": false,
+        "description": "Подтверждение удаления аккаунта паролем.",
+        "example": {
+          "password": "SampleFinance!2026"
+        }
+      },
+      "Tokens": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "JWT для заголовка Authorization: Bearer <accessToken>."
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Непрозрачный одноразовый токен обновления: 43 символа base64url."
+          },
+          "tokenType": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ],
+            "description": "Тип токена авторизации: Bearer.",
+            "example": "Bearer"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "enum": [
+              900
+            ],
+            "description": "Срок действия accessToken в секундах.",
+            "example": 900
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "tokenType",
+          "expiresIn"
+        ],
+        "additionalProperties": false,
+        "description": "Пара токенов сессии устройства.",
+        "example": {
+          "accessToken": "example-access-jwt",
+          "refreshToken": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "tokenType": "Bearer",
+          "expiresIn": 900
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID пользователя."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Адрес электронной почты пользователя.",
+            "example": "user@example.com"
+          },
+          "baseCurrencyCode": {
+            "type": "string",
+            "description": "Базовая валюта: RUB, EUR или USD.",
+            "example": "RUB"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "baseCurrencyCode"
+        ],
+        "additionalProperties": false,
+        "description": "Профиль текущего пользователя.",
+        "example": {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "email": "user@example.com",
+          "baseCurrencyCode": "RUB"
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Машиночитаемый код ошибки."
+          },
+          "message": {
+            "type": "string",
+            "description": "Безопасное сообщение без внутренних деталей."
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Идентификатор запроса для диагностики по журналам."
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId"
+        ],
+        "additionalProperties": false,
+        "description": "Безопасный ответ об ошибке.",
+        "example": {
+          "code": "VALIDATION_ERROR",
+          "message": "Request rejected",
+          "requestId": "example-request-id"
+        }
+      },
+      "CategoryPayload": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Название категории, до 80 символов Unicode.",
+            "example": "Продукты"
+          },
+          "archived": {
+            "type": "boolean",
+            "description": "Признак архивной категории. Архивирование выполняется через UPDATE.",
+            "example": false
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Порядок отображения категории, целое число int32.",
+            "example": 0
+          }
+        },
+        "additionalProperties": false,
+        "description": "Поля категории расходов.",
+        "example": {
+          "name": "Продукты",
+          "archived": false,
+          "sortOrder": 0
+        }
+      },
+      "ExpensePayload": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID категории текущего пользователя."
+          },
+          "amountMinor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 9223372036854775807,
+            "description": "Сумма расхода в минимальных единицах валюты (например, копейках), целое число.",
+            "example": 12500
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата расхода в формате YYYY-MM-DD.",
+            "example": "2026-11-05"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true,
+            "description": "Примечание к расходу, до 500 символов Unicode.",
+            "example": "Покупки на неделю"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Поля расхода.",
+        "example": {
+          "categoryId": "11111111-1111-4111-8111-111111111111",
+          "amountMinor": 12500,
+          "occurredOn": "2026-11-05",
+          "note": "Покупки на неделю"
+        }
+      },
+      "MonthlyBudgetPayload": {
+        "type": "object",
+        "properties": {
+          "monthStart": {
+            "type": "string",
+            "format": "date",
+            "description": "Первое число месяца в формате YYYY-MM-01.",
+            "example": "2026-11-01"
+          },
+          "limitMinor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 9223372036854775807,
+            "description": "Лимит бюджета в минимальных единицах валюты, целое число.",
+            "example": 500000
+          }
+        },
+        "additionalProperties": false,
+        "description": "Поля общего бюджета на месяц.",
+        "example": {
+          "monthStart": "2026-11-01",
+          "limitMinor": 500000
+        }
+      },
+      "CategoryBudgetPayload": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID категории текущего пользователя."
+          },
+          "monthStart": {
+            "type": "string",
+            "format": "date",
+            "description": "Первое число месяца в формате YYYY-MM-01.",
+            "example": "2026-11-01"
+          },
+          "limitMinor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 9223372036854775807,
+            "description": "Лимит бюджета в минимальных единицах валюты, целое число.",
+            "example": 500000
+          }
+        },
+        "additionalProperties": false,
+        "description": "Поля бюджета категории на месяц.",
+        "example": {
+          "categoryId": "11111111-1111-4111-8111-111111111111",
+          "monthStart": "2026-11-01",
+          "limitMinor": 500000
+        }
+      },
+      "SyncOperation": {
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID операции для идемпотентности. Повтор ID допускается только с тем же содержимым."
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "CATEGORY",
+              "EXPENSE",
+              "MONTHLY_BUDGET",
+              "CATEGORY_BUDGET"
+            ],
+            "description": "Тип финансовой сущности; допустимые значения перечислены в enum."
+          },
+          "entityId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID финансовой сущности."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "CREATE",
+              "UPDATE",
+              "DELETE"
+            ],
+            "description": "Действие над сущностью. Для категории DELETE не поддерживается: используйте archived=true."
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 1,
+            "description": "Версия, известная клиенту. Для CREATE отсутствует/null; для UPDATE и DELETE — не менее 1."
+          },
+          "data": {
+            "nullable": true,
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryPayload"
+              },
+              {
+                "$ref": "#/components/schemas/ExpensePayload"
+              },
+              {
+                "$ref": "#/components/schemas/MonthlyBudgetPayload"
+              },
+              {
+                "$ref": "#/components/schemas/CategoryBudgetPayload"
+              }
+            ],
+            "description": "Данные сущности: CREATE — обязательные поля; UPDATE — непустое частичное изменение; DELETE — null или пустой объект."
+          },
+          "epoch": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Эпоха сервера, к которой относятся данные. Не заменяйте эпоху старых операций на текущую."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "operationId",
+          "entityType",
+          "entityId",
+          "action",
+          "epoch"
+        ],
+        "description": "Изменение одной финансовой сущности.",
+        "example": {
+          "operationId": "22222222-2222-4222-8222-222222222222",
+          "entityType": "CATEGORY",
+          "entityId": "33333333-3333-4333-8333-333333333333",
+          "action": "CREATE",
+          "data": {
+            "name": "Продукты",
+            "archived": false,
+            "sortOrder": 0
+          },
+          "epoch": "11111111-1111-4111-8111-111111111111"
+        }
+      },
+      "Push": {
+        "type": "object",
+        "properties": {
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/SyncOperation"
+            },
+            "description": "От 1 до 50 операций, обрабатываемых последовательно с независимой фиксацией."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "operations"
+        ],
+        "description": "Пакет изменений устройства.",
+        "example": {
+          "operations": [
+            {
+              "operationId": "22222222-2222-4222-8222-222222222222",
+              "entityType": "CATEGORY",
+              "entityId": "33333333-3333-4333-8333-333333333333",
+              "action": "CREATE",
+              "data": {
+                "name": "Продукты",
+                "archived": false,
+                "sortOrder": 0
+              },
+              "epoch": "11111111-1111-4111-8111-111111111111"
+            }
+          ]
+        }
+      },
+      "OperationResult": {
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID операции для идемпотентности. Повтор ID допускается только с тем же содержимым."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "ALREADY_APPLIED",
+              "CONFLICT",
+              "VALIDATION_ERROR",
+              "NOT_FOUND"
+            ],
+            "description": "Статус результата; допустимые значения указаны в схеме."
+          },
+          "entityVersion": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Версия сущности на сервере."
+          },
+          "serverSnapshot": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Серверное состояние сущности, если оно предоставлено для результата."
+          },
+          "code": {
+            "type": "string",
+            "description": "Машиночитаемый код ошибки."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "operationId",
+          "status"
+        ],
+        "description": "Результат обработки одной операции.",
+        "example": {
+          "operationId": "22222222-2222-4222-8222-222222222222",
+          "status": "APPLIED",
+          "entityVersion": 1,
+          "serverSnapshot": {
+            "name": "Продукты",
+            "archived": false,
+            "sortOrder": 0
+          }
+        }
+      },
+      "PushResults": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperationResult"
+            },
+            "description": "Результаты в порядке входных операций. Проверяйте статус каждого результата, даже при HTTP 200."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "results"
+        ],
+        "description": "Результаты обработки пакета.",
+        "example": {
+          "results": [
+            {
+              "operationId": "22222222-2222-4222-8222-222222222222",
+              "status": "APPLIED",
+              "entityVersion": 1,
+              "serverSnapshot": {
+                "name": "Продукты",
+                "archived": false,
+                "sortOrder": 0
+              }
+            }
+          ]
+        }
+      },
+      "Change": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Монотонный номер изменения пользователя."
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "CATEGORY",
+              "EXPENSE",
+              "MONTHLY_BUDGET",
+              "CATEGORY_BUDGET"
+            ],
+            "description": "Тип финансовой сущности; допустимые значения перечислены в enum."
+          },
+          "entityId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID финансовой сущности."
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "UPSERT",
+              "DELETE"
+            ],
+            "description": "Вид изменения, включая удаление."
+          },
+          "entityVersion": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Версия сущности на сервере."
+          },
+          "snapshot": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true,
+            "description": "Состояние сущности для применения изменения; учитывайте вид операции."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "seq",
+          "entityType",
+          "entityId",
+          "operation",
+          "entityVersion",
+          "snapshot"
+        ],
+        "description": "Одно изменение в журнале пользователя.",
+        "example": {
+          "seq": 1,
+          "entityType": "CATEGORY",
+          "entityId": "11111111-1111-4111-8111-111111111111",
+          "operation": "UPSERT",
+          "entityVersion": 1,
+          "snapshot": {
+            "name": "Продукты",
+            "archived": false,
+            "sortOrder": 0
+          }
+        }
+      },
+      "Pull": {
+        "type": "object",
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "description": "Страница изменений, упорядоченная по seq."
+          },
+          "nextCursor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Курсор для следующего запроса; сохраняйте согласованно с применёнными данными."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "true означает, что требуется загрузить следующую страницу."
+          },
+          "epoch": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Эпоха сервера, к которой относятся данные. Не заменяйте эпоху старых операций на текущую."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "changes",
+          "nextCursor",
+          "hasMore",
+          "epoch"
+        ],
+        "description": "Страница изменений для обычной синхронизации.",
+        "example": {
+          "changes": [],
+          "nextCursor": 0,
+          "hasMore": false,
+          "epoch": "11111111-1111-4111-8111-111111111111"
+        }
+      },
+      "EmailRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Адрес электронной почты пользователя.",
+            "example": "user@example.com"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false,
+        "description": "Адрес для отправки служебного письма.",
+        "example": {
+          "email": "user@example.com"
+        }
+      },
+      "ActionToken": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "description": "Одноразовый токен из письма: 43 символа base64url, привязан к назначению."
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "additionalProperties": false,
+        "description": "Одноразовый токен из служебного письма.",
+        "example": {
+          "token": "ccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      "PasswordReset": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "description": "Одноразовый токен из письма: 43 символа base64url, привязан к назначению."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 128,
+            "description": "Пароль. Новый пароль: 12–128 символов Unicode; распространённые пароли отклоняются. Пароль передаётся только по защищённому соединению.",
+            "example": "SampleFinance!2026"
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "additionalProperties": false,
+        "description": "Токен сброса и новый пароль.",
+        "example": {
+          "token": "ccccccccccccccccccccccccccccccccccccccccccc",
+          "password": "SampleFinance!2026"
+        }
+      },
+      "Accepted": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED"
+            ],
+            "description": "Статус результата; допустимые значения указаны в схеме."
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false,
+        "description": "Подтверждение приёма запроса без раскрытия наличия аккаунта.",
+        "example": {
+          "status": "ACCEPTED"
+        }
+      },
+      "SyncStatus": {
+        "type": "object",
+        "properties": {
+          "epoch": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Эпоха сервера, к которой относятся данные. Не заменяйте эпоху старых операций на текущую."
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "RECOVERY"
+            ],
+            "description": "Текущая фаза восстановления сервера."
+          },
+          "requiresFullResync": {
+            "type": "boolean",
+            "description": "Устройству необходимо завершить полное восстановление перед обычной синхронизацией."
+          },
+          "latestSeq": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Последний номер изменения пользователя."
+          }
+        },
+        "required": [
+          "epoch",
+          "phase",
+          "requiresFullResync",
+          "latestSeq"
+        ],
+        "additionalProperties": false,
+        "description": "Состояние сервера и необходимость восстановления устройства.",
+        "example": {
+          "epoch": "11111111-1111-4111-8111-111111111111",
+          "phase": "READY",
+          "requiresFullResync": false,
+          "latestSeq": 0
+        }
+      },
+      "RecoverySession": {
+        "type": "object",
+        "properties": {
+          "recoveryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID сессии полного восстановления."
+          },
+          "epoch": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Эпоха сервера, к которой относятся данные. Не заменяйте эпоху старых операций на текущую."
+          },
+          "cutoffSeq": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Фиксированная верхняя граница изменений этой сессии восстановления."
+          },
+          "deliveredSeq": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Последний номер изменения, выданный в рамках сессии."
+          }
+        },
+        "required": [
+          "recoveryId",
+          "epoch",
+          "cutoffSeq",
+          "deliveredSeq"
+        ],
+        "additionalProperties": false,
+        "description": "Сессия полного восстановления с фиксированной границей.",
+        "example": {
+          "recoveryId": "11111111-1111-4111-8111-111111111111",
+          "epoch": "11111111-1111-4111-8111-111111111111",
+          "cutoffSeq": 0,
+          "deliveredSeq": 0
+        }
+      },
+      "RecoveryPage": {
+        "type": "object",
+        "properties": {
+          "recoveryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID сессии полного восстановления."
+          },
+          "epoch": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Эпоха сервера, к которой относятся данные. Не заменяйте эпоху старых операций на текущую."
+          },
+          "cutoffSeq": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Фиксированная верхняя граница изменений этой сессии восстановления."
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "description": "Страница изменений, упорядоченная по seq."
+          },
+          "nextCursor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Курсор для следующего запроса; сохраняйте согласованно с применёнными данными."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "true означает, что требуется загрузить следующую страницу."
+          }
+        },
+        "required": [
+          "recoveryId",
+          "epoch",
+          "cutoffSeq",
+          "changes",
+          "nextCursor",
+          "hasMore"
+        ],
+        "additionalProperties": false,
+        "description": "Страница полного восстановления.",
+        "example": {
+          "recoveryId": "11111111-1111-4111-8111-111111111111",
+          "epoch": "11111111-1111-4111-8111-111111111111",
+          "cutoffSeq": 0,
+          "changes": [],
+          "nextCursor": 0,
+          "hasMore": false
+        }
+      },
+      "RecoveryAck": {
+        "type": "object",
+        "properties": {
+          "lastCursor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Последний применённый курсор; при подтверждении должен совпадать с cutoffSeq."
+          },
+          "localCopyPreserved": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Подтверждение сохранения предыдущей локальной копии. Для завершения требуется true."
+          },
+          "pendingOperationsQuarantined": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Подтверждение изоляции старой очереди операций. Для завершения требуется true."
+          }
+        },
+        "required": [
+          "lastCursor",
+          "localCopyPreserved",
+          "pendingOperationsQuarantined"
+        ],
+        "additionalProperties": false,
+        "description": "Подтверждение сохранения копии и завершения загрузки.",
+        "example": {
+          "lastCursor": 0,
+          "localCopyPreserved": true,
+          "pendingOperationsQuarantined": true
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Текущий сервер"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Авторизация",
+      "description": "Регистрация и управление сессиями устройств."
+    },
+    {
+      "name": "Почта и пароль",
+      "description": "Подтверждение адреса и восстановление доступа."
+    },
+    {
+      "name": "Профиль",
+      "description": "Данные и удаление текущего аккаунта."
+    },
+    {
+      "name": "Синхронизация",
+      "description": "Передача финансовых изменений и курсоры."
+    },
+    {
+      "name": "Восстановление",
+      "description": "Полная пересинхронизация после смены эпохи."
+    },
+    {
+      "name": "Мониторинг",
+      "description": "Работоспособность сервиса."
+    }
+  ]
+}

@@ -1,118 +1,127 @@
-# Finance Tracker backend
+# Finance Tracker
 
-Реализация по `finance_backend_spec_v1_1_java21.md`: **рабочий внутренний backend**.
-Приглашения, подтверждение email/reset, JWT/refresh-сессии, категории/расходы/бюджеты, sync push/pull,
-recovery epoch/full replay, изоляция RLS, удаление аккаунта, локальный HTTPS. Резервное копирование владелец выполняет самостоятельно.
-CI настроен на каждый push и pull request в GitHub Actions. Публичный production-релиз ещё не готов:
-условия перечислены в [operations.md](backend/docs/operations.md).
+Finance Tracker — серверная часть приложения для учёта личных финансов. Она хранит
+расходы, категории и бюджеты пользователя и синхронизирует изменения между его
+устройствами. Это позволяет вести учёт трат и планировать бюджет на месяц.
 
-Требования: JDK 21, Docker с запущенным daemon, доступ к Maven Central,
-Gradle Plugin Portal и официальным дистрибутивам Gradle.
-Spring Boot 3.5.16 / Spring 6.2.19 и JUnit 5.13.4 согласованы по решению пользователя.
+В репозитории находятся сервер, настройки локального окружения и документация API.
+Пользовательский интерфейс подключается отдельно.
 
-## Локальная база
+## Возможности
 
-Скопируйте `infra/.env.example` в `infra/.env`, задайте четыре разных приватных
-пароля: `POSTGRES_BOOTSTRAP_PASSWORD`, `DB_RUNTIME_PASSWORD`, `DB_MIGRATOR_PASSWORD`,
-`DB_INVITE_PASSWORD`.
+- Учёт расходов с распределением по категориям.
+- Планирование месячного бюджета и лимитов по категориям.
+- Синхронизация данных между устройствами с обработкой повторных запросов,
+  конфликтов и удалённых записей.
+- Регистрация по приглашению и подтверждение электронной почты.
+- Вход с нескольких устройств, обновление сессий и выход из аккаунта.
+- Сброс пароля по электронной почте и удаление аккаунта вместе с серверными данными.
+- Раздельный доступ к данным пользователей и восстановление синхронизации после
+  восстановления базы данных.
+
+## Локальный запуск
+
+Понадобятся JDK 21, Docker с запущенным движком и доступ к интернету для первой
+загрузки зависимостей. Команды ниже выполняются из корня репозитория, если не
+указано иное.
+
+### 1. Подготовьте окружение
+
+Скопируйте пример настроек:
 
 ```sh
-docker compose --env-file infra/.env -f infra/compose.yaml up -d --wait
+cp infra/.env.example infra/.env
 ```
 
-На новом томе bootstrap создаёт `finance_runtime`, `finance_migrator`,
-`finance_invite_admin` и схему `app`.
-Flyway при старте backend создаёт таблицы под migrator; JDBC pool использует runtime.
-Bootstrap-учётные данные приложению не передаются. Порт БД опубликован только на loopback.
+В `infra/.env` задайте четыре разных пароля:
 
-Если том создан на этапе 0, init-скрипт автоматически не повторится. Для такого тома,
-где роли ещё отсутствуют, выполните однократно после `up`:
+- `POSTGRES_BOOTSTRAP_PASSWORD` — первоначальная настройка базы.
+- `DB_RUNTIME_PASSWORD` — доступ приложения к данным.
+- `DB_MIGRATOR_PASSWORD` — обновление структуры базы.
+- `DB_INVITE_PASSWORD` — создание приглашений.
+
+Запустите базу данных и локальный почтовый ящик:
 
 ```sh
-docker compose --env-file infra/.env -f infra/compose.yaml exec -T postgres \
-  psql -v ON_ERROR_STOP=1 -U finance_bootstrap -d finance \
-  -f /docker-entrypoint-initdb.d/001-roles.sql
+docker compose --env-file infra/.env -f infra/compose.yaml --profile mail up -d --wait
 ```
 
-Существующие данные и том не удаляйте. Скрипт не предназначен для повторного создания
-имеющихся ролей или ротации паролей. Изменение `.env` само по себе не меняет пароль
-существующей роли. Подробнее: [БД и транзакции](backend/docs/database.md).
-Для тома этапа 1 отдельно добавляется роль приглашений — см.
-[инструкцию обновления и авторизации](backend/docs/security.md).
-Том и существующие роли не пересоздавайте.
+При первом запуске роли и хранилище создаются автоматически. Данные сохраняются
+между перезапусками. Изменение паролей в `infra/.env` не меняет пароли уже
+созданных ролей.
 
-Секреты backend экспортируйте из приватного окружения отдельно;
-`.env` автоматически приложением не загружается. Для JWT обязателен `JWT_KEY_FILE`
-с абсолютным путём к случайному binary-ключу >=32 байт; создание ключа и команды
-`create-invite` описаны в [security.md](backend/docs/security.md).
+### 2. Настройте сервер
 
-## Сборка
+Приложение не загружает `infra/.env` автоматически. В терминале, из которого будете
+запускать сервер, задайте переменные окружения. Вместо значений в угловых скобках
+укажите соответствующие пароли из `infra/.env`:
 
-Gradle Wrapper присутствует в `backend/`. Первый запуск загружает Gradle 8.14.4,
-поэтому требуется доступ к `services.gradle.org` и серверам распространения Gradle.
-Gradle успешно загружен; в Wrapper закреплена официальная SHA-256.
-Docker доступен, интеграционные тесты с PostgreSQL 18.3 выполнены.
+```sh
+export DB_URL='jdbc:postgresql://127.0.0.1:5432/finance'
+export DB_RUNTIME_USER='finance_runtime'
+export DB_RUNTIME_PASSWORD='<DB_RUNTIME_PASSWORD>'
+export DB_MIGRATOR_USER='finance_migrator'
+export DB_MIGRATOR_PASSWORD='<DB_MIGRATOR_PASSWORD>'
+```
 
-JUnit закреплён отдельно: 5.13.4. Используются Mockito, @WebMvcTest и ограниченные
-@SpringBootTest-контексты; полные HTTP/recovery fixtures сохранены для сквозных проверок.
-Проверенная команда (кэш внутри директории проекта):
+Один раз создайте локальный ключ для подписания токенов:
+
+```sh
+openssl rand -out backend/local-jwt.key 32
+chmod 600 backend/local-jwt.key
+```
+
+Укажите абсолютный путь к нему в том же терминале:
+
+```sh
+export JWT_KEY_FILE="$PWD/backend/local-jwt.key"
+```
+
+При последующих запусках используйте тот же ключ. Файлы с ключами и локальными
+паролями исключены из Git.
+
+### 3. Запустите приложение
 
 ```sh
 cd backend
-GRADLE_USER_HOME="$PWD/../.gradle-user-home" ./gradlew clean check bootJar --no-daemon
+./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-Результат: **BUILD SUCCESSFUL**. Проверки используют настоящий PostgreSQL 18.3,
-раздельные роли и RLS. Пороги общего и доменного покрытия 80% сохранены.
-Актуальные тесты, покрытия и границы готовности: [итоговый отчёт](backend/docs/implementation-report.md).
-Контракт реализованных маршрутов: [OpenAPI](backend/docs/openapi.yaml).
+При старте приложение подготовит структуру базы. Сервер будет доступен по адресу
+http://127.0.0.1:8080.
 
-Git в этой директории пока не инициализирован; remote не задан. Публичный deployment
-не настроен. Java и Kotlin реализуют осмысленные части одного backend.
-Публичные условия эксплуатации, реальная SMTP-доставка и клиентские экраны остаются отдельной работой.
+- Документация API с возможностью отправлять запросы: http://127.0.0.1:8080/swagger-ui.html.
+- Проверка доступности сервера: http://127.0.0.1:8080/actuator/health.
+- Локальный почтовый ящик: http://127.0.0.1:8025.
 
-## CI в GitHub Actions
+Письма подтверждения и сброса пароля попадают в локальный ящик.
 
-Workflow [backend-ci.yml](.github/workflows/backend-ci.yml) запускается на каждый push
-во все ветки и теги, а также на pull request, без фильтра по изменённым файлам.
-Правила событий: [документация GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
-На Ubuntu с Java 21 и Docker выполняется `./gradlew clean check`: все unit- и
-интеграционные тесты, общая и четыре доменных проверки покрытия 80%.
-Testcontainers создаёт временные PostgreSQL/Mailpit; тестовые пароли и JWT-ключи
-генерируются фикстурами, production-секреты и `infra/.env` не нужны.
+### 4. Создайте приглашение и зарегистрируйтесь
 
-XML/HTML-отчёты тестов и JaCoCo сохраняются на 7 дней в артефакте
-`backend-test-reports`, в том числе при падении проверок. Результат доступен во вкладке
-**Actions** после загрузки проекта вместе с `.github/` в GitHub с включёнными Actions.
-
-## Запуск локального backend
-
-После подготовки БД и экспорта DB_URL, DB_RUNTIME_USER/DB_RUNTIME_PASSWORD,
-DB_MIGRATOR_USER/DB_MIGRATOR_PASSWORD и JWT_KEY_FILE из приватного окружения:
+После первого запуска сервера откройте отдельный терминал в корне репозитория.
+Выполните команду, подставив вместо `<DB_INVITE_PASSWORD>` пароль из `infra/.env`:
 
 ```sh
-SPRING_PROFILES_ACTIVE=local java -jar backend/build/libs/finance-tracker-backend-0.1.0-SNAPSHOT.jar
+cd backend
+INVITE_DB_URL='jdbc:postgresql://127.0.0.1:5432/finance' \
+INVITE_DB_USER='finance_invite_admin' \
+INVITE_DB_PASSWORD='<DB_INVITE_PASSWORD>' \
+./gradlew bootRun --args='create-invite'
 ```
 
-Local слушает 127.0.0.1:8080. Для писем запустите Compose с `--profile mail`;
-Mailpit inbox: http://127.0.0.1:8025. Регистрация теперь 201, затем verify email и login.
-Подробности: [email](backend/docs/email-security.md), [recovery](backend/docs/recovery-protocol.md). Приглашение выпускается отдельным процессом create-invite
-с INVITE_DB_* credentials по security.md. Для защищённого удалённого доступа используйте
-подготовленный TLS/proxy профиль; публичная эксплуатация требует условий operations.md.
+Команда выведет одноразовый код приглашения. Используйте его при регистрации через
+API, затем подтвердите почту и войдите в аккаунт. Приглашение действует семь дней.
 
-## Проверка готового JAR
+В локальном окружении без клиентского приложения токен из письма можно передать
+в запрос подтверждения через документацию API. Страницы подтверждения почты и
+сброса пароля реализуются в клиентском приложении.
+
+## Остановка
+
+Остановите сервер сочетанием `Ctrl+C`, затем выполните из корня репозитория:
 
 ```sh
-docker build -f infra/Dockerfile -t finance-backend:local .
-python3 scripts/verify-local.py
+docker compose --env-file infra/.env -f infra/compose.yaml --profile mail stop
 ```
 
-Скрипт сам создаёт временные PostgreSQL, сертификат и ключи внутри `backend/build/`,
-проверяет HTTPS, два устройства/аккаунта, sync, подтверждение email, сброс пароля
-и смену recovery epoch. Существующие БД/тома не используются. Java 21 (`java`, `keytool`), Python 3
-и Docker должны быть доступны. Детали: [синхронизация](backend/docs/sync-protocol.md),
-[безопасность](backend/docs/security.md), [эксплуатация](backend/docs/operations.md).
-
-Структура слоёв, модели Entity/DTO и группы тестов: [project-structure.md](backend/docs/project-structure.md).
-
-DI, Lombok и ограниченные контексты: [di-and-testing.md](backend/docs/di-and-testing.md).
+База данных сохранится для следующего запуска.
